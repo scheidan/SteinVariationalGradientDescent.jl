@@ -25,7 +25,7 @@ log_p(x) = -sum(abs2, x) / 2
 ∇log_p(x) = -x
 
 inits = randn(100, 2) .+ 3
-result = svgd(log_p, ∇log_p, inits; n_iter=500, stepsize=0.05)
+result = svgd(log_p, ∇log_p, inits; n_iter=1_000, stepsize=0.1)
 
 result.particles
 result.log_p
@@ -35,7 +35,7 @@ As in BarkerMCMC.jl, the first argument can instead be an object implementing
 the first-order `LogDensityProblems.jl` interface:
 
 ```julia
-result = svgd(lp, inits; n_iter=500, stepsize=0.05)
+result = svgd(lp, inits; n_iter=1_000, stepsize=0.1)
 ```
 
 ### Arguments
@@ -46,12 +46,10 @@ result = svgd(lp, inits; n_iter=500, stepsize=0.05)
 - `∇log_p`: function returning the gradient of `log_p` at a particle.
 - `inits`: matrix whose rows contain the initial particle positions.
 - `n_iter=100`: number of particle update iterations.
-- `stepsize=0.1`: initial AdaGrad step size.
-- `α=0.9`: decay applied to the AdaGrad history of squared update directions.
+- `stepsize=0.1`: particle update step size.
+- `α=0.9`: weight assigned to the previous smoothed `phi`.
 - `bandwidth=nothing`: RBF kernel bandwidth. The default applies the median
   heuristic at each iteration.
-- `fudge_factor=1e-6`: value added to the AdaGrad denominator for numerical
-  stability.
 - `show_progress=true`: display a progress bar.
 
 The return value is a named tuple with `particles`, containing the final
