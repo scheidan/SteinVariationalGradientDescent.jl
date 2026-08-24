@@ -47,7 +47,7 @@ result = svgd(lp, inits; n_iter=1_000, stepsize=0.1)
 - `inits`: matrix whose rows contain the initial particle positions.
 - `n_iter=100`: number of particle update iterations.
 - `stepsize=0.1`: particle update step size.
-- `α=0.9`: weight assigned to the previous smoothed `phi`.
+- `α=0.9`: decay applied to the AdaGrad history of squared `phi` values.
 - `bandwidth=nothing`: RBF kernel bandwidth. The default applies the median
   heuristic at each iteration.
 - `show_progress=true`: display a progress bar.

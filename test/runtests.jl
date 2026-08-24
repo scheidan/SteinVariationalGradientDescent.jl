@@ -14,10 +14,11 @@ log_p_standard_normal(x) = -sum(abs2, x) / 2
 
         expected_phi = reshape([(1 - 3kernel) / 2,
                                 -(1 - 3kernel) / 2], 2, 1)
+        adjusted_phi = expected_phi ./ (1e-6 .+ sqrt.(expected_phi.^2))
         result = svgd(log_p_standard_normal, ∇log_p_standard_normal,
                       particles; n_iter=1, stepsize=1.0, bandwidth=2.0,
-                      α=0.0, show_progress=false)
-        @test result.particles ≈ particles + expected_phi
+                      show_progress=false)
+        @test result.particles ≈ particles + adjusted_phi
     end
 
     @testset "Function interface" begin

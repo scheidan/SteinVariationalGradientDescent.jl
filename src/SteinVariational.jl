@@ -29,8 +29,7 @@ given as separate log-density and gradient functions. An RBF kernel is used;
 by default, its bandwidth is recalculated at each iteration with the median
 heuristic. Set `bandwidth` to a positive number to use a fixed bandwidth.
 
-The particle updates use exponential momentum with decay `α` and step size
-`stepsize`.
+The particle updates use AdaGrad with decay `α` and step size `stepsize`.
 
 # Arguments
 
@@ -40,7 +39,7 @@ The particle updates use exponential momentum with decay `α` and step size
 - `inits`: matrix whose rows contain the initial particle postions
 - `n_iter=100`: number of particle update iterations
 - `stepsize=0.1`: particle update step size
-- `α=0.9`: weight assigned to the previous smoothed `phi`
+- `α=0.9`: decay applied to the AdaGrad history of squared `phi` values
 - `bandwidth=nothing`: RBF kernel bandwidth; `nothing` applies the median
   heuristic at each iteration
 - `show_progress=true`: display progress bar
@@ -63,16 +62,17 @@ function svgd(lp, inits::AbstractMatrix; n_iter=100, stepsize=0.1,
 
     d = LogDensityProblems.dimension(lp)
     n = size(inits, 1)              # number of particles
+    fudge_factor = 1e-6             # for adagrad update
 
     LogDensityProblems.capabilities(lp) >= LogDensityProblems.LogDensityOrder(1) ||
         error("The LogDensityProblem must provide gradient computation!")
     size(inits, 2) == d ||
-    error("The initial positions must be given by an n x $(d) -matrix!")
+        error("The initial positions must be given by an n x $(d) -matrix!")
 
     pos = float.(inits)         # initial particle positions
     ∇log_p = similar(pos)
     log_p = similar(pos, n)
-    phi_previous = zeros(eltype(pos), size(pos))
+    historical_grad = zeros(eltype(pos), size(pos))
 
     progress = ProgressMeter.Progress(n_iter; dt=1, desc="Optimizing... ",
                                       enabled=show_progress)
@@ -90,11 +90,18 @@ function svgd(lp, inits::AbstractMatrix; n_iter=100, stepsize=0.1,
 
         k = exp.(-squared_distances ./ h)
 
-        # compute phi and update positions
+        # compute phi
         phi = (k * ∇log_p + 2 / h .* (sum(k; dims=2) .* pos - k * pos)) ./ n
-        phi .= α .* phi_previous .+ (1 - α) .* phi
-        phi_previous .= phi
-        pos .+= stepsize .* phi
+
+        # update with adagrad, see:
+        # https://github.com/DartML/Stein-Variational-Gradient-Descent/blob/master/python/svgd.py
+        if l == 1
+            phi2_prev .= phi.^2
+        else
+            phi2_prev .= α .* phi2_prev .+ (1 - α) .* phi.^2
+        end
+        adjusted_grad = phi ./ (fudge_factor .+ sqrt.(phi2_prev))
+        pos .+= stepsize .* adjusted_grad
 
         ProgressMeter.next!(progress)
     end
