@@ -23,7 +23,6 @@ or:
          α=0.9, fudge_factor=1e-6, show_progress=true)
 ```
 
-
 The rows of `inits` are the initial particles. The target can be a
 `LogDensityProblems.jl` object that provides first derivatives, or it can be
 given as separate log-density and gradient functions. An RBF kernel is used;
@@ -95,8 +94,6 @@ function svgd(log_p::Function, ∇log_p::Function, inits::AbstractMatrix;
     lp = SimpleLogDensityProblem(log_p, ∇log_p, size(inits, 2))
     svgd(lp, inits; kwargs...)
 end
-
-
 
 function evaluate_target!(scores, log_ps, lp, particles)
     for i in axes(particles, 1)

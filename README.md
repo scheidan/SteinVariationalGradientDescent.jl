@@ -14,10 +14,9 @@ From the Julia package manager:
 
 ## Usage
 
-The initial particle positions are given by a matrix where each row is
-represents a particle.
-A target can be supplied as a
-pair of functions for its log density and gradient:
+The initial particle positions are given by a matrix where each row represents
+a particle. A target can be supplied as separate functions for its log density
+and gradient:
 
 ```julia
 using SteinVariational
@@ -28,7 +27,7 @@ log_p(x) = -sum(abs2, x) / 2
 inits = randn(100, 2) .+ 3
 result = svgd(log_p, ∇log_p, inits; n_iter=500, stepsize=0.05)
 
-result.samples
+result.particles
 result.log_p
 ```
 
@@ -38,6 +37,25 @@ the first-order `LogDensityProblems.jl` interface:
 ```julia
 result = svgd(lp, inits; n_iter=500, stepsize=0.05)
 ```
+
+### Arguments
+
+- `lp`: target implementing the first-order `LogDensityProblems.jl` interface.
+- `log_p`: function returning the possibly unnormalized log density at a
+  particle.
+- `∇log_p`: function returning the gradient of `log_p` at a particle.
+- `inits`: matrix whose rows contain the initial particle positions.
+- `n_iter=100`: number of particle update iterations.
+- `stepsize=0.1`: initial AdaGrad step size.
+- `α=0.9`: decay applied to the AdaGrad history of squared update directions.
+- `bandwidth=nothing`: RBF kernel bandwidth. The default applies the median
+  heuristic at each iteration.
+- `fudge_factor=1e-6`: value added to the AdaGrad denominator for numerical
+  stability.
+- `show_progress=true`: display a progress bar.
+
+The return value is a named tuple with `particles`, containing the final
+particles as rows, and `log_p`, containing their log densities.
 
 ## References
 
