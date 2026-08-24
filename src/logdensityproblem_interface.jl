@@ -1,0 +1,18 @@
+struct SimpleLogDensityProblem{F,G}
+    log_p::F
+    ∇log_p::G
+    dim::Int
+end
+
+LogDensityProblems.dimension(lp::SimpleLogDensityProblem) = lp.dim
+
+function LogDensityProblems.capabilities(::Type{<:SimpleLogDensityProblem})
+    LogDensityProblems.LogDensityOrder{1}()
+end
+
+LogDensityProblems.logdensity(lp::SimpleLogDensityProblem, x) = lp.log_p(x)
+
+function LogDensityProblems.logdensity_and_gradient(lp::SimpleLogDensityProblem,
+                                                     x)
+    (lp.log_p(x), lp.∇log_p(x))
+end
