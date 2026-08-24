@@ -5,3 +5,4 @@
 /test/Manifest.toml
 /docs/build/
 /.DS_Store
+/.dir-locals.el

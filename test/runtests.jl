@@ -6,13 +6,18 @@ log_p_standard_normal(x) = -sum(abs2, x) / 2
 ∇log_p_standard_normal(x) = -x
 
 @testset "SteinVariational" begin
-    @testset "SVGD phi" begin
+    @testset "SVGD update" begin
         particles = reshape([-1.0, 1.0], 2, 1)
-        scores = -particles
         kernel = exp(-2)
-        expected = reshape([(1 - 3kernel) / 2, -(1 - 3kernel) / 2], 2, 1)
-        phi = SteinVariational.phi(particles, scores, 2.0)
-        @test phi ≈ expected
+        squared_distances = SteinVariational.pairwise_squared_distances(particles)
+        @test squared_distances == [0.0 4.0; 4.0 0.0]
+
+        expected_phi = reshape([(1 - 3kernel) / 2,
+                                -(1 - 3kernel) / 2], 2, 1)
+        result = svgd(log_p_standard_normal, ∇log_p_standard_normal,
+                      particles; n_iter=1, stepsize=1.0, bandwidth=2.0,
+                      α=0.0, show_progress=false)
+        @test result.particles ≈ particles + expected_phi
     end
 
     @testset "Function interface" begin

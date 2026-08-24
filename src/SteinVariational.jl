@@ -60,34 +60,49 @@ Processing Systems 29.
 """
 function svgd(lp, inits::AbstractMatrix; n_iter=100, stepsize=0.1,
               bandwidth=nothing, α=0.9, show_progress=true)
-    particles = float.(inits)
-    scores = similar(particles)
-    log_ps = similar(particles, size(particles, 1))
-    phi_previous = zeros(eltype(particles), size(particles))
+
+    d = LogDensityProblems.dimension(lp)
+    n = size(inits, 1)              # number of particles
+
+    LogDensityProblems.capabilities(lp) >= LogDensityProblems.LogDensityOrder(1) ||
+        error("The LogDensityProblem must provide gradient computation!")
+    size(inits, 2) == d ||
+    error("The initial positions must be given by an n x $(d) -matrix!")
+
+    pos = float.(inits)         # initial particle positions
+    ∇log_p = similar(pos)
+    log_p = similar(pos, n)
+    phi_previous = zeros(eltype(pos), size(pos))
 
     progress = ProgressMeter.Progress(n_iter; dt=1, desc="Optimizing... ",
                                       enabled=show_progress)
     for l in 1:n_iter
-
-        # get gradient of each particle
-        for p in axes(particles, 1)
-            log_ps[p], gradient = LogDensityProblems.logdensity_and_gradient(lp, @view particles[p, :])
-            scores[p, :] .= gradient
+        for i in 1:n
+            _, ∇log_p_i = LogDensityProblems.logdensity_and_gradient(lp, @view pos[i, :])
+            ∇log_p[i, :] .= ∇log_p_i
         end
 
+        # compute RBF kernel
+        squared_distances = pairwise_squared_distances(pos)
 
-        phi = SteinVariational.phi(particles, scores, bandwidth)
+        h = isnothing(bandwidth) ? median_bandwidth(squared_distances) : bandwidth
+        h = max(h, eps(eltype(pos)))
+
+        k = exp.(-squared_distances ./ h)
+
+        # compute phi and update positions
+        phi = (k * ∇log_p + 2 / h .* (sum(k; dims=2) .* pos - k * pos)) ./ n
         phi .= α .* phi_previous .+ (1 - α) .* phi
         phi_previous .= phi
-        particles .+= stepsize .* phi
+        pos .+= stepsize .* phi
 
         ProgressMeter.next!(progress)
     end
 
-    for p in axes(particles, 1)
-        log_ps[p] = LogDensityProblems.logdensity(lp, @view particles[p, :])
+    for i in 1:n
+        log_p[i] = LogDensityProblems.logdensity(lp, @view pos[i, :])
     end
-    (particles=particles, log_p=log_ps)
+    (particles=pos, log_p=log_p)
 end
 
 function svgd(log_p::Function, ∇log_p::Function, inits::AbstractMatrix;
@@ -99,43 +114,21 @@ end
 
 
 
-function phi(particles, scores, bandwidth)
-    n_particles, dimension = size(particles)
-    squared_distances = zeros(eltype(particles), n_particles, n_particles)
-    pairwise_distances = Vector{eltype(particles)}(
-        undef, n_particles * (n_particles - 1) ÷ 2)
-
-    index = 1
-    for j in 1:n_particles-1, i in j+1:n_particles
-        distance = zero(eltype(particles))
-        for k in 1:dimension
-            distance += abs2(particles[i, k] - particles[j, k])
-        end
-        squared_distances[i, j] = squared_distances[j, i] = distance
-        pairwise_distances[index] = distance
-        index += 1
-    end
-
-    h = isnothing(bandwidth) ? median_bandwidth(pairwise_distances,
-                                                n_particles) : bandwidth
-    h = max(h, eps(eltype(particles)))
-
-    phi = zeros(eltype(particles), size(particles))
-    for i in 1:n_particles, j in 1:n_particles
-        kernel = exp(-squared_distances[i, j] / h)
-        for k in 1:dimension
-            phi[i, k] += kernel * scores[j, k] +
-                2 * kernel * (particles[i, k] - particles[j, k]) / h
-        end
-    end
-    phi ./ n_particles
+function pairwise_squared_distances(x)
+    squared_norms = sum(abs2, x; dims=2)
+    max.(squared_norms .+ squared_norms' .- 2 .* (x * x'), zero(eltype(x)))
 end
 
-function median_bandwidth(pairwise_distances, n_particles)
-    if isempty(pairwise_distances)
-        return one(eltype(pairwise_distances))
+function median_bandwidth(squared_distances)
+    n = size(squared_distances, 1)
+    if n < 2
+        return one(eltype(squared_distances))
     end
-    median(pairwise_distances) / log(eltype(pairwise_distances)(n_particles + 1))
+
+    pairwise_distances = [squared_distances[i, j]
+                          for j in 1:n-1 for i in j+1:n]
+    median(pairwise_distances) /
+        log(eltype(squared_distances)(n + 1))
 end
 
 end
