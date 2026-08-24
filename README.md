@@ -4,9 +4,11 @@
 [![Coverage](https://codecov.io/gh/scheidan/SteinVariationalGradientDescent.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/scheidan/SteinVariationalGradientDescent.jl)
 
 
-Julia implementation of the Stein Variational Gradient Decent Algrithm as proposed
+Julia implementation of the Stein Variational Gradient Decent Algorithm as proposed
 by Liu, Q. & Wang, D. (2016).
 
+> [!WARNING]
+> This package is a work in progress experimentation! Do not use it for anything important!
 
 ## Installation
 
